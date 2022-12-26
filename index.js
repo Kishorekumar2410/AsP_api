@@ -1,25 +1,23 @@
-const express = require('express');
-const bodyParser = require('body-parser');
-const client = require('./db/config')
+let express = require('express');
+let app = express();
+let dotenv = require('dotenv');
+dotenv.config()
+let port = process.env.PORT || 2800;
+const mongodb = require("mongodb");
+const MongoClient = mongodb.MongoClient;
+let mongoUrl = process.env.LiveMongo;
+let cors = require('cors')
+let bodyParser = require('body-parser');
+const mongoose = require("mongoose");
+let db = null;
 
-const app = express();
-const  port= 2800;
-
-app.use(bodyParser.urlencoded({extended:true}));
-app.use(bodyParser.json());
-let db;
-
-client.connect(function (dbConnectionError, client) {
-    if (dbConnectionError) {
-        throw dbConnectionError;
-    } else {
-        db = client.db('APdb'); n
-    }
-})
+app.use(bodyParser.urlencoded({extended:true}))
+app.use(bodyParser.json())
+app.use(cors())
 
 app.get('/',(req,res)=>{
     res.send({
-        message:'Hello Kishore',
+        message:'Hello Kishore kumar',
         status : 200
     })
 })
@@ -30,7 +28,7 @@ app.listen(port, ()=>{
 
 app.post('/additemdetails', (req, res) => {
     if (db) {
-        db.collection('itemdetails').insertOne(req.body, (err, result) => {
+        db.collection('products').insertOne(req.body, (err, result) => {
             if (err) {
                 res.send({
                     message: 'Server side  error!',
@@ -52,7 +50,7 @@ app.post('/additemdetails', (req, res) => {
 
 app.get('/viewItemDetails',  (request, response)=> {
     if (db) {
-        db.collection('itemdetails').find().toArray( (error, result) =>{
+        db.collection('products').find().toArray( (error, result) =>{
             if (error) {
                 response.send({
                     message: 'not found!',
@@ -60,7 +58,53 @@ app.get('/viewItemDetails',  (request, response)=> {
                 });
             } else {
 
-                response.send({ status: 200, message: "food details retrieved successfully", data: result })
+                response.send({ status: 200, message: "item details retrieved successfully", data: result })
+            }
+        })
+    } else {
+        response.send({
+            message: 'Db connection error!',
+            status: 500
+        });
+    }
+})
+
+app.put('/updateitemdetails',(request, response)=>{
+    if (db) {
+        db.collection('products').updateOne({ _id: ObjectID(request.body.id) }, {
+            $set: {
+                image: request.body.image
+            }
+        }, function (error, result) {
+            if (error) {
+                response.send({
+                    message: 'not found!',
+                    status: 404
+                });
+            } else {
+
+                response.send({ status: 200, message: "item details updated successfully" })
+            }
+        })
+    } else {
+        response.send({
+            message: 'Db connection error!',
+            status: 500
+        });
+    }
+})
+
+app.delete('/deleteitemdetails',(request, response)=>{
+    if (db) {
+        db.collection('products').deleteOne({ _id: ObjectID(request.body.id) }, function (err, result)  {
+            if (err) {
+                res.send({
+                    message: 'Server side  error!',
+                    status: 500
+                });
+            } else {
+
+                response.send({ status: 200, message: "item  details deleted successfully" })
             }
         })
     } else {
@@ -89,10 +133,11 @@ app.get('/category_id',(req,res)=>{
 })
 
 // filter items
-app.get('/filter/:prod_id',(req,res) => {
+app.get('/filter/:productId',(req,res) => {
     let query = {};
-    let sort = {cost:1}
-    let productId = Number(req.params.prodId);
+    let sort = {cost:1};
+    let categoryId=Number(req.params.Categoryid);
+    let productId = Number(req.params.productid);
     let type = Number(req.query.typeId);
     let lcost = Number(req.query.lcost);
     let hcost = Number(req.query.hcost);
@@ -101,26 +146,26 @@ app.get('/filter/:prod_id',(req,res) => {
         sort={cost:req.query.sort}
     }
 
-    if(hcost && lcost && cuisineId){
+    if(hcost && lcost && categoryId){
         query={
-            "itemTypes.type_id":prodId,
+            "itemTypes.type_id":productId,
             $and:[{cost:{$gt:lcost,$lt:hcost}}]
         }
     }
     else if(hcost && lcost){
         query={
-            "itemTypes.type_id":prodId,
+            "itemTypes.type_id":productId,
             $and:[{cost:{$gt:lcost,$lt:hcost}}]
         }
     }
     else if(categoryId){
         query={
-            "itemTypes.type_id":prodId,
+            "itemTypes.type_id":productId,
             "category.category_id":categoryId
         }
     }else{
         query={
-            "itemTypes.type_id":prodId
+            "itemTypes.type_id":productId
         }
     }
     db.collection('products').find(query).sort(sort).toArray((err,result) => {
@@ -173,6 +218,8 @@ app.post('/placeOrder',(req,res) => {
     })
 })
 
+//update order
+
 app.put('/updateOrder/:id',(req,res) => {
     let oid = Number(req.params.id);
     db.collection('orders').updateOne(
@@ -197,3 +244,59 @@ app.delete('/deleteOrder/:id',(req,res) => {
         res.send('Order Deleted')
     })
 })
+
+// connecting to db
+// const connectDB = async () => {
+//     const conn = await mongoose
+//       .connect(process.env.LiveMongo, {
+//         useNewUrlParser: true,
+//         useUnifiedTopology: true,
+//       })
+//       .catch((err) => {
+//         console.log("error: ", err);
+//       });
+  
+//     console.log(`Mongoose Connected: ${conn.connection.host}`.cyan.underline.bold);
+//   };
+  
+//   module.exports = connectDB;
+// MongoClient.connect(mongoUrl,(err,client) => {
+//     if(err) console.log('Error while connecting');
+//     db = client.db('asianpaints');
+//     app.listen(port,()=>{
+//         console.log(`Server is running on port ${PORT}`)
+//     })
+
+// })
+
+
+const connectionURL = "mongodb+srv://looser:looser24@cluster0.sqdrli8.mongodb.net/?retryWrites=true&w=majority"
+const dbName = "AP"
+
+//get MongoClient
+
+
+MongoClient.connect(connectionURL,{
+    useNewUrlParser: true,
+    useUnifiedTopology: true
+},(err,connectedClient) => {
+    if(err){
+        throw err;
+    }
+    //connectedClient will be the connected instance of MongoClient
+    db = connectedClient.db(dbName);
+    //now you can write queries
+
+    db.collection("products").find({}).toArray()
+    .then(r => {
+        console.log(r);
+    }).catch(e => {
+        console.error(`ERROR:`,e);
+    })
+
+})
+
+
+// user
+const AuthController = require('./controllers/auth-Controller');
+app.use('/api/auth',AuthController);

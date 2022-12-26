@@ -1,6 +1,6 @@
 const MongoClient = require('mongodb').MongoClient;
 
-const MongoURL= 'mongodb://127.0.0.1:27017/';
+const MongoURL= "mongodb://localhost:27017";
 
 const client = new MongoClient(MongoURL,{
     useNewUrlParser:true,
@@ -9,3 +9,6 @@ const client = new MongoClient(MongoURL,{
 
 module.exports = client;
 
+module.exports = {
+    'secret':'SuperSecret'
+}
